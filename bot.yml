@@ -1,0 +1,57 @@
+name: Telegram Bot
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # يعيد التشغيل كل 6 ساعات تلقائياً
+    - cron: "0 */6 * * *"
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350  # أقل من 6 ساعات لتجنب الإيقاف المفاجئ
+
+    steps:
+      # ── 1. تحميل الكود ──
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. إعداد Python ──
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # ── 3. استعادة قاعدة البيانات من الـ cache ──
+      - name: Restore database
+        uses: actions/cache@v4
+        with:
+          path: database.json
+          key: bot-database-${{ github.run_id }}
+          restore-keys: |
+            bot-database-
+
+      # ── 4. استعادة مجلد التحميل المؤقت ──
+      - name: Create downloads folder
+        run: mkdir -p downloads
+
+      # ── 5. تثبيت المتطلبات ──
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 6. تشغيل البوت ──
+      - name: Run bot
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: python bot.py
+
+      # ── 7. حفظ قاعدة البيانات بعد الانتهاء ──
+      - name: Save database
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: database.json
+          key: bot-database-${{ github.run_id }}
